@@ -17,8 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
-# Importa todos tus ViewSets
+# Importa tus ViewSets
 from usuarios.views      import UsuarioViewSet
 from viajes.views        import ViajeViewSet
 from reservas.views      import ReservaViewSet
@@ -26,6 +30,7 @@ from pagos.views         import PagoViewSet
 from valoraciones.views  import ValoracionViewSet
 from mensajes.views      import MensajeViewSet
 
+# Configuramos el router
 router = DefaultRouter()
 router.register(r'usuarios',     UsuarioViewSet,     basename='usuario')
 router.register(r'viajes',       ViajeViewSet,       basename='viaje')
@@ -34,21 +39,12 @@ router.register(r'pagos',        PagoViewSet,        basename='pago')
 router.register(r'valoraciones', ValoracionViewSet,  basename='valoracion')
 router.register(r'mensajes',     MensajeViewSet,     basename='mensaje')
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
-]
-
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-
+# Rutas principales
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
 
-    # Endpoints para JWT:
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # Endpoints JWT
+    path('api/token/',         TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(),  name='token_refresh'),
 ]

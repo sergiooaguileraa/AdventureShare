@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
+    "react-hook-form": "^7.56.3",
+    "react-router-dom": "^6.30.0",
+    "yup": "^1.6.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.6"
+  }
+}
