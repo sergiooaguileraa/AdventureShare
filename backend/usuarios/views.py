@@ -1,15 +1,24 @@
-from django.shortcuts import render
+# backend/usuarios/views.py
+from rest_framework import generics, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from .serializers import UserRegistrationSerializer, UsuarioSerializer
+from usuarios.models import Usuario
 
-# Create your views here.
-from rest_framework import viewsets, permissions
-from .models import Usuario
-from .serializers import UsuarioSerializer
+class UserRegistrationView(generics.CreateAPIView):
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [AllowAny]
+
+class CurrentUserView(generics.GenericAPIView):
+    serializer_class = UsuarioSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 class UsuarioViewSet(viewsets.ModelViewSet):
-    """
-    Endpoint para gestionar usuarios.
-    Solo usuarios administradores pueden listar, crear o modificar otros usuarios.
-    """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAuthenticated]
+

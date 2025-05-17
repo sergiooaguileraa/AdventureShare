@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # Carga variables de entorno desde .env
@@ -26,7 +27,7 @@ INSTALLED_APPS = [
     # Terceros
     'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 
     # Tuyas
     'usuarios',
@@ -37,9 +38,9 @@ INSTALLED_APPS = [
     'mensajes',
 ]
 
-# Middlewares (corsheaders MUST ir antes de CommonMiddleware)
+# Middlewares (corsheaders debe ir antes de CommonMiddleware)
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',      
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -49,8 +50,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS (solo para desarrollo)
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS — solo permite peticiones desde tu React en desarrollo
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3001',
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # URLs y plantillas
@@ -86,17 +89,29 @@ DATABASES = {
     }
 }
 
-# Autenticación
+# Modelo de usuario personalizado
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
-# REST Framework + JWT
+# Django REST Framework + JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        # JWT para clientes externos
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Sesión/Basic para el navegador de la API
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+# Configuración de Simple JWT
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 # Validadores de contraseña
@@ -107,10 +122,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
-# Internacionalización y ficheros estáticos
-LANGUAGE_CODE = 'en-us'
+# Internacionalización
+LANGUAGE_CODE = 'es-es'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+
+# Archivos estáticos
 STATIC_URL = 'static/'
+
+# Media (subidas de usuarios)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

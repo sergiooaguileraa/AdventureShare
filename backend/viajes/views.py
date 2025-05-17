@@ -1,19 +1,20 @@
-from django.shortcuts import render
+# backend/viajes/views.py
 
-# Create your views here.
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.parsers import MultiPartParser, FormParser
+
 from .models import Viaje
 from .serializers import ViajeSerializer
 
 class ViajeViewSet(viewsets.ModelViewSet):
     """
-    CRUD de viajes.
-    Solo usuarios autenticados pueden ver y crear viajes.
+    CRUD de viajes:
+    - GET (list/retrieve): abierto a todos (read-only)
+    - POST, PUT, PATCH, DELETE: solo usuarios autenticados
     """
-    queryset = Viaje.objects.all().order_by('-creado_en')
+    queryset = Viaje.objects.all().order_by('-fecha_inicio')
     serializer_class = ViajeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def perform_create(self, serializer):
-        # Asigna automáticamente el organizador al usuario que crea el viaje
-        serializer.save(organizador=self.request.user)
