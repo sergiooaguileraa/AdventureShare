@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+// frontend/src/pages/ProfilePage.jsx
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../contexts/AuthContext';
 import { fetchProfile, updateProfile } from '../services/api';
 
 const styles = {
@@ -24,7 +24,6 @@ const styles = {
 };
 
 export default function ProfilePage() {
-  const { updateUserProfile } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +31,7 @@ export default function ProfilePage() {
   const [tempValue, setTempValue] = useState('');
   const navigate = useNavigate();
 
-  // Carga inicial
+  // Carga inicial del perfil
   useEffect(() => {
     fetchProfile()
       .then(({ data }) => {
@@ -40,12 +39,10 @@ export default function ProfilePage() {
         setProfile(safe);
         if (safe.avatar) setPreview(safe.avatar);
       })
-      .catch(() => {
-        navigate('/login', { replace: true });
-      });
+      .catch(() => navigate('/login', { replace: true }));
   }, [navigate]);
 
-  // Selección de nuevo avatar
+  // Selección de archivo
   const handleFile = e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -53,24 +50,26 @@ export default function ProfilePage() {
     setPreview(URL.createObjectURL(file));
   };
 
-  // Función para guardar solo avatar
+  // Guardar solo avatar
   const saveAvatar = async () => {
     setLoading(true);
     try {
       const form = new FormData();
       form.append('avatar', profile.avatar);
-      const { data } = await updateProfile(form);
-      updateUserProfile(form);
-      setProfile(prev => ({ ...prev, avatar: data.avatar }));
-      setPreview(data.avatar);
+      await updateProfile(form);
+      // Recarga perfil para sincronizar datos
+      const { data } = await fetchProfile();
+      const safe = { ...data, ratings: Array.isArray(data.ratings) ? data.ratings : [] };
+      setProfile(safe);
+      if (safe.avatar) setPreview(safe.avatar);
     } catch {
-      alert('Error guardando avatar.');
+      alert('Error guardando avatar');
     } finally {
       setLoading(false);
     }
   };
 
-  // Inline edit handlers
+  // Iniciar/Cancelar edición inline
   const startEdit = field => {
     setEditMode(field);
     setTempValue(profile[field] || '');
@@ -79,6 +78,8 @@ export default function ProfilePage() {
     setEditMode(null);
     setTempValue('');
   };
+
+  // Guardar username o bio (y avatar si cambia)
   const saveEdit = async () => {
     setLoading(true);
     try {
@@ -87,13 +88,15 @@ export default function ProfilePage() {
       if (profile.avatar instanceof File) {
         form.append('avatar', profile.avatar);
       }
-      const { data } = await updateProfile(form);
-      updateUserProfile(form);
-      setProfile(prev => ({ ...prev, [editMode]: tempValue }));
+      await updateProfile(form);
+      const { data } = await fetchProfile();
+      const safe = { ...data, ratings: Array.isArray(data.ratings) ? data.ratings : [] };
+      setProfile(safe);
+      if (safe.avatar) setPreview(safe.avatar);
       setEditMode(null);
       setTempValue('');
     } catch {
-      alert('Error guardando cambios.');
+      alert('Error guardando cambios');
     } finally {
       setLoading(false);
     }
@@ -129,7 +132,7 @@ export default function ProfilePage() {
         <li style={styles.sectionItem} onClick={() => startEdit('username')}>
           <span>Cambiar usuario</span><span>›</span>
         </li>
-        <li style={styles.sectionItem} onClick={() => navigate('/cambiar-contraseña')}>
+        <li style={styles.sectionItem} onClick={() => navigate('/perfil/cambiar-contraseña')}>
           <span>Cambiar contraseña</span><span>›</span>
         </li>
         <li style={styles.sectionItem} onClick={() => startEdit('bio')}>

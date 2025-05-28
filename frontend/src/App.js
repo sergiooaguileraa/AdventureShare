@@ -1,3 +1,4 @@
+// frontend/src/App.js
 import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext } from './contexts/AuthContext';
@@ -12,8 +13,8 @@ import PaymentPage from './pages/PaymentPage';
 import PaymentListPage from './pages/PaymentListPage';
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from './pages/ProfilePage';
+import ChangePasswordPage from './pages/ChangePasswordPage';  // ← Importamos la nueva página
 
-// Protege rutas
 function RequireAuth({ children }) {
   const { user } = useContext(AuthContext);
   return user ? children : <Navigate to="/login" replace />;
@@ -35,7 +36,10 @@ export default function App() {
         <Route path="reservas/:id/pay" element={<PaymentPage />} />
         <Route path="pagos" element={<PaymentListPage />} />
         <Route path="mensajes" element={<MessagesPage />} />
+
+        {/* Perfil y cambio de contraseña */}
         <Route path="perfil" element={<ProfilePage />} />
+        <Route path="perfil/cambiar-contraseña" element={<ChangePasswordPage />} />
       </Route>
 
       {/* Fallback */}

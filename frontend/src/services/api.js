@@ -53,7 +53,7 @@ export function updateProfile(formData) {
 
 // Cambiar contraseña
 export function changePassword(oldPw, newPw) {
-  return api.post('/usuarios/password/', { old_password: oldPw, new_password: newPw });
+  return api.post('/usuarios/me/password/', { old_password: oldPw, new_password: newPw });
 }
 
 // 4) Export default de la instancia por si la necesitas directamente
