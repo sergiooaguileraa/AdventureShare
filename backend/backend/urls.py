@@ -1,26 +1,24 @@
-"""
-URL configuration for backend project.
+# backend/urls.py
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-"""
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+# Importa tus vistas y viewsets
+from usuarios.views import (
+    UserRegistrationView,
+    CurrentUserView,
+    ChangePasswordView,
+    UsuarioViewSet,
 )
+from viajes.views       import ViajeViewSet
+from reservas.views     import ReservaViewSet
+from pagos.views        import PagoViewSet
+from valoraciones.views import ValoracionViewSet
+from mensajes.views     import MensajeViewSet
 
-# Importa tus ViewSets y vistas adicionales
-from usuarios.views      import UsuarioViewSet, UserRegistrationView, CurrentUserView
-from viajes.views        import ViajeViewSet
-from reservas.views      import ReservaViewSet
-from pagos.views         import PagoViewSet
-from valoraciones.views  import ValoracionViewSet
-from mensajes.views      import MensajeViewSet
-
-# Configuramos el router para los ViewSets
+# Configura el router para los viewsets “genéricos”
 router = DefaultRouter()
 router.register(r'usuarios',     UsuarioViewSet,     basename='usuario')
 router.register(r'viajes',       ViajeViewSet,       basename='viaje')
@@ -33,18 +31,28 @@ urlpatterns = [
     # Panel de administración
     path('admin/', admin.site.urls),
 
-    # --- Rutas de usuarios ANTES del router para no ser sobreescritas ----
-    path('api/usuarios/register/', UserRegistrationView.as_view(), name='user-register'),
-    path('api/usuarios/me/',       CurrentUserView.as_view(),      name='current-user'),
+    # ——— Endpoints de usuario (deben ir ANTES del router) ———
+    # Registro público
+    path('api/register/', UserRegistrationView.as_view(), name='user-register'),
 
-    # API principal (ViewSets)
+    # “Mi perfil” (GET, PATCH) — ruta principal
+    path('api/me/', CurrentUserView.as_view(), name='current-user'),
+    # — alias exactamente igual, para no romper el frontend que usa /api/usuarios/me/
+    path('api/usuarios/me/', CurrentUserView.as_view()),
+
+    # Cambio de contraseña (POST) — ruta principal
+    path('api/me/password/', ChangePasswordView.as_view(), name='change-password'),
+    # — alias para /api/usuarios/me/password/
+    path('api/usuarios/me/password/', ChangePasswordView.as_view()),
+
+    # ——— JWT Auth ———
+    path('api/token/',         TokenObtainPairView.as_view(),   name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(),      name='token_refresh'),
+
+    # ——— Resto de tu API ———
     path('api/', include(router.urls)),
 
-    # Endpoints JWT para login y refresh de tokens
-    path('api/token/',         TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(),  name='token_refresh'),
-
-    # (Opcional) para poder probar la API con el navegador DRF
+    # DRF browsable API login/logout (opcional)
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
 
@@ -53,5 +61,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
 

@@ -1,13 +1,19 @@
-// frontend/src/App.js
 import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthContext } from './contexts/AuthContext';
+
+import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import TripListPage from './pages/TripListPage';
 import TripDetailPage from './pages/TripDetailPage';
 import CreateTripPage from './pages/CreateTripPage';
-import { AuthContext } from './contexts/AuthContext';
+import ReservationListPage from './pages/ReservationListPage';
+import PaymentPage from './pages/PaymentPage';
+import PaymentListPage from './pages/PaymentListPage';
+import MessagesPage from './pages/MessagesPage';
+import ProfilePage from './pages/ProfilePage';
 
-// Componente de protección de rutas
+// Protege rutas
 function RequireAuth({ children }) {
   const { user } = useContext(AuthContext);
   return user ? children : <Navigate to="/login" replace />;
@@ -16,44 +22,28 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* Ruta pública de login */}
+      {/* Pública */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Listado de viajes (protegido) */}
-      <Route
-        path="/trips"
-        element={
-          <RequireAuth>
-            <TripListPage />
-          </RequireAuth>
-        }
-      />
+      {/* Protegidas dentro de Layout */}
+      <Route element={<RequireAuth><Layout /></RequireAuth>}>
+        <Route path="/" element={<Navigate to="/trips" replace />} />
+        <Route path="trips" element={<TripListPage />} />
+        <Route path="trips/create" element={<CreateTripPage />} />
+        <Route path="trips/:id" element={<TripDetailPage />} />
+        <Route path="reservas" element={<ReservationListPage />} />
+        <Route path="reservas/:id/pay" element={<PaymentPage />} />
+        <Route path="pagos" element={<PaymentListPage />} />
+        <Route path="mensajes" element={<MessagesPage />} />
+        <Route path="perfil" element={<ProfilePage />} />
+      </Route>
 
-      {/* Crear nuevo viaje (protegido) */}
-      <Route
-        path="/trips/create"
-        element={
-          <RequireAuth>
-            <CreateTripPage />
-          </RequireAuth>
-        }
-      />
-
-      {/* Detalle de un viaje (protegido) */}
-      <Route
-        path="/trips/:id"
-        element={
-          <RequireAuth>
-            <TripDetailPage />
-          </RequireAuth>
-        }
-      />
-
-      {/* Redirigir cualquier otra ruta */}
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/trips" replace />} />
     </Routes>
   );
 }
+
 
 
 
