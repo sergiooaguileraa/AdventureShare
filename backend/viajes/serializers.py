@@ -4,14 +4,20 @@ from rest_framework import serializers
 from .models import Viaje
 
 class ViajeSerializer(serializers.ModelSerializer):
-    organizador = serializers.ReadOnlyField(source='organizador.username')
+    organizador = serializers.SerializerMethodField()
+    organizador_id = serializers.ReadOnlyField(source='organizador.id')
+    organizador_avatar = serializers.SerializerMethodField()
     imagen_url = serializers.SerializerMethodField()
+    # Nuevo campo para exponer el estado de cancelación
+    cancelled = serializers.ReadOnlyField()
 
     class Meta:
         model = Viaje
         fields = [
             'id',
             'organizador',
+            'organizador_id',
+            'organizador_avatar',
             'titulo',
             'descripcion',
             'origen',
@@ -23,8 +29,9 @@ class ViajeSerializer(serializers.ModelSerializer):
             'plazas_disponibles',
             'imagen',
             'imagen_url',
+            'cancelled',  # ← lo añadimos aquí
         ]
-        read_only_fields = ['id', 'organizador', 'plazas_disponibles']
+        read_only_fields = ['id', 'organizador', 'plazas_disponibles', 'cancelled']
 
     def get_imagen_url(self, obj):
         request = self.context.get('request')
@@ -33,11 +40,15 @@ class ViajeSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(url) if request else url
         return None
 
-    def create(self, validated_data):
-        # Asignar el usuario autenticado como organizador
-        user = self.context['request'].user
-        validated_data['organizador'] = user
-        # Dejar que DRF maneje el resto de la creación
-        return super().create(validated_data)
+    def get_organizador(self, obj):
+        return obj.organizador.username
+
+    def get_organizador_avatar(self, obj):
+        request = self.context.get('request')
+        avatar = obj.organizador.avatar
+        if avatar and hasattr(avatar, 'url'):
+            url = avatar.url
+            return request.build_absolute_uri(url) if request else url
+        return None
 
 

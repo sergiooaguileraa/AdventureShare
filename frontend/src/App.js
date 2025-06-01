@@ -1,4 +1,5 @@
 // frontend/src/App.js
+
 import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext } from './contexts/AuthContext';
@@ -13,7 +14,7 @@ import PaymentPage from './pages/PaymentPage';
 import PaymentListPage from './pages/PaymentListPage';
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from './pages/ProfilePage';
-import ChangePasswordPage from './pages/ChangePasswordPage';  // ← Importamos la nueva página
+import ChangePasswordPage from './pages/ChangePasswordPage';
 
 function RequireAuth({ children }) {
   const { user } = useContext(AuthContext);
@@ -23,26 +24,36 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* Pública */}
+      {/* Rutas públicas */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Protegidas dentro de Layout */}
+      {/* Rutas protegidas dentro del layout general */}
       <Route element={<RequireAuth><Layout /></RequireAuth>}>
+        {/* Redirige "/" a "/trips" */}
         <Route path="/" element={<Navigate to="/trips" replace />} />
+
+        {/* Gestión de viajes */}
         <Route path="trips" element={<TripListPage />} />
         <Route path="trips/create" element={<CreateTripPage />} />
         <Route path="trips/:id" element={<TripDetailPage />} />
+
+        {/* Reservas y pagos */}
         <Route path="reservas" element={<ReservationListPage />} />
         <Route path="reservas/:id/pay" element={<PaymentPage />} />
         <Route path="pagos" element={<PaymentListPage />} />
+
+        {/* Mensajes y conversaciones */}
         <Route path="mensajes" element={<MessagesPage />} />
 
-        {/* Perfil y cambio de contraseña */}
+        {/* Perfil propio y cambio de contraseña */}
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="perfil/cambiar-contraseña" element={<ChangePasswordPage />} />
+
+        {/* Perfil público de otro usuario (organizador) */}
+        <Route path="organizador/:id" element={<ProfilePage />} />
       </Route>
 
-      {/* Fallback */}
+      {/* Fallback: redirige rutas desconocidas a /trips */}
       <Route path="*" element={<Navigate to="/trips" replace />} />
     </Routes>
   );

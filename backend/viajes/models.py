@@ -20,6 +20,8 @@ class Viaje(models.Model):
     precio = models.DecimalField(max_digits=8, decimal_places=2)
     imagen = models.ImageField(upload_to='viajes/', null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
+    # Nuevo campo para marcar cancelaciones
+    cancelled = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         # Inicializa plazas_disponibles al total si aún no asignado
@@ -28,4 +30,6 @@ class Viaje(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.titulo} ({self.origen} → {self.destino})"
+        estado = " (CANCELADO)" if self.cancelled else ""
+        return f"{self.titulo} ({self.origen} → {self.destino}){estado}"
+

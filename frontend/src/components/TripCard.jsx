@@ -5,22 +5,64 @@ import { useNavigate } from 'react-router-dom';
 export default function TripCard({ viaje }) {
   const navigate = useNavigate();
 
+  // Parsear fechas del viaje
+  const inicio = new Date(viaje.fecha_inicio);
+  const fin = new Date(viaje.fecha_fin);
+  const hoy = new Date();
+
+  // Determinar estado del viaje
+  let estadoText = '';
+  let estadoClasses = '';
+  if (hoy < inicio) {
+    // Aún no ha empezado
+    estadoText = 'Por iniciar';
+    estadoClasses = 'bg-blue-100 text-blue-800';
+  } else if (hoy >= inicio && hoy < fin) {
+    // Actualmente en curso
+    estadoText = 'En curso';
+    estadoClasses = 'bg-yellow-100 text-yellow-800';
+  } else {
+    // Ya finalizó
+    estadoText = 'Realizado';
+    estadoClasses = 'bg-green-100 text-green-800';
+  }
+
   return (
     <div
       onClick={() => navigate(`/trips/${viaje.id}`)}
-      className="cursor-pointer bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition"
+      className="relative cursor-pointer bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition"
     >
       <img
-        src={viaje.imagen_url} // o tu campo de imagen
+        src={viaje.imagen_url}
         alt={viaje.destino}
         className="w-full h-48 object-cover"
       />
+
+      {/* Badge de estado en la esquina superior derecha sobre la imagen */}
+      <div className="absolute top-2 right-2">
+        <span
+          className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${estadoClasses}`}
+        >
+          {/* Punto de color a la izquierda */}
+          <span
+            className={`inline-block w-2 h-2 rounded-full mr-1 ${
+              estadoText === 'Por iniciar'
+                ? 'bg-blue-500'
+                : estadoText === 'En curso'
+                ? 'bg-yellow-500'
+                : 'bg-green-500'
+            }`}
+          ></span>
+          {estadoText}
+        </span>
+      </div>
+
       <div className="p-4">
-        <h3 className="text-lg font-semibold">{viaje.nombre}</h3>
+        <h3 className="text-lg font-semibold">{viaje.titulo}</h3>
         <p className="text-sm text-gray-600">
           {viaje.origen} → {viaje.destino}
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="flex items-center text-sm text-gray-500">
           {new Date(viaje.fecha_inicio).toLocaleDateString()} –{' '}
           {new Date(viaje.fecha_fin).toLocaleDateString()}
         </p>

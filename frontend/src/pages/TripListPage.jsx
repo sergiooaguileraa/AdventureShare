@@ -25,7 +25,9 @@ export default function TripListPage() {
       setError(null);
       try {
         const res = await api.get('/viajes/');
-        setViajes(res.data);
+        // Filtramos de entrada sólo los no cancelados:
+        const activos = res.data.filter(v => !v.cancelled);
+        setViajes(activos);
       } catch (err) {
         if (err.response?.status === 401) logout();
         else setError('Error al cargar los viajes.');
@@ -36,10 +38,14 @@ export default function TripListPage() {
   }, [user, navigate, logout]);
 
   if (loading) return <p className="text-center mt-6">Cargando viajes…</p>;
-  if (error) return <p className="text-center mt-6 text-red-600">{error}</p>;
+  if (error)   return <p className="text-center mt-6 text-red-600">{error}</p>;
 
+  // Orígenes únicos para el filtro
   const origins = Array.from(new Set(viajes.map(v => v.origen)));
+
+  // Buscador + filtro de origen
   const filtered = viajes.filter(v =>
+    !v.cancelled &&                                           // sólo activos (por si)
     v.destino.toLowerCase().includes(search.toLowerCase()) &&
     (filterOrigin ? v.origen === filterOrigin : true)
   );
@@ -48,7 +54,6 @@ export default function TripListPage() {
     <div className="p-4 min-h-screen">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Listado de Viajes</h2>
-        {/* Cualquiera puede crear viajes */}
         <button
           onClick={() => navigate('/trips/create')}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -81,7 +86,9 @@ export default function TripListPage() {
         <p className="text-center text-gray-600">No hay viajes que coincidan.</p>
       ) : (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(v => <TripCard key={v.id} viaje={v} />)}
+          {filtered.map(v => (
+            <TripCard key={v.id} viaje={v} />
+          ))}
         </div>
       )}
     </div>

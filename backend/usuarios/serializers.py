@@ -1,5 +1,9 @@
+# backend/usuarios/serializers.py
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 Usuario = get_user_model()
 
@@ -69,14 +73,33 @@ class UsuarioSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'date_joined']
 
     def update(self, instance, validated_data):
-        # Si viene un nuevo avatar, Django lo actualiza; borramos el anterior si existe
         avatar = validated_data.pop('avatar', None)
         if avatar:
-            # Opcional: eliminar fichero previo
             if instance.avatar:
                 instance.avatar.delete(save=False)
             instance.avatar = avatar
 
-        # Resto de campos gestionados por super
         return super().update(instance, validated_data)
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Serializer JWT que devuelve mensajes diferenciados si
+    el usuario no existe o la contraseña es incorrecta.
+    """
+    def validate(self, attrs):
+        username = attrs.get('username')
+        password = attrs.get('password')
+
+        # 1) ¿Existe el usuario?
+        user = Usuario.objects.filter(username=username).first()
+        if user is None:
+            raise AuthenticationFailed('Usuario no existe', 'no_user')
+
+        # 2) ¿Contraseña correcta?
+        if not user.check_password(password):
+            raise AuthenticationFailed('Contraseña incorrecta', 'bad_password')
+
+        # 3) Flujo normal para emisión de tokens
+        return super().validate(attrs)
 

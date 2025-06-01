@@ -1,14 +1,21 @@
 # backend/usuarios/views.py
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
 from rest_framework import generics, viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
 
-from .serializers import UserRegistrationSerializer, UsuarioSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from .serializers import (
+    UserRegistrationSerializer,
+    UsuarioSerializer,
+    CustomTokenObtainPairSerializer
+)
 from usuarios.models import Usuario
 
 
@@ -22,15 +29,13 @@ class UserRegistrationView(generics.CreateAPIView):
 
 class CurrentUserView(generics.RetrieveUpdateAPIView):
     """
-    Permite al usuario autenticado ver y editar su propio perfil:
-    avatar, bio, nombre, apellidos, email…
+    Permite al usuario autenticado ver y editar su propio perfil.
     """
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_object(self):
-        # Siempre devolverá el usuario actual
         return self.request.user
 
 
@@ -78,4 +83,25 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     serializer_class = UsuarioSerializer
     permission_classes = [IsAdminUser]
     parser_classes = [MultiPartParser, FormParser]
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Endpoint para login JWT que usa el serializer custom
+    para distinguir errores de usuario/password.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+class PublicUserView(generics.RetrieveAPIView):
+    """
+    Recupera el perfil público de cualquier usuario:
+    avatar, bio, username (y cualquier otro campo que definas
+    en UsuarioSerializer). No requiere autenticación.
+    
+    Ruta: GET /api/usuarios_publicos/<pk>/
+    """
+    queryset = Usuario.objects.all()
+    serializer_class = UsuarioSerializer
+    permission_classes = [AllowAny]
 
