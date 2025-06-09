@@ -1,15 +1,32 @@
-// frontend/src/pages/PaymentListPage.jsx
-import React, { useState, useEffect } from 'react';
+// src/pages/PaymentListPage.jsx
+
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { AuthContext } from '../contexts/AuthContext';
+
+import PaymentCard from '../components/PaymentCard';
+import './PaymentListPage.css';
 
 export default function PaymentListPage() {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [pagos, setPagos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('pagos/')
-      .then(res => {
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    // Pedimos directamente /pagos/, el backend ya filtra por usuario
+    api
+      .get('/pagos/')
+      .then((res) => {
         setPagos(res.data);
         setLoading(false);
       })
@@ -17,23 +34,23 @@ export default function PaymentListPage() {
         setError('No se pudieron cargar los pagos');
         setLoading(false);
       });
-  }, []);
+  }, [user, navigate]);
 
   if (loading) return <p>Cargando pagos…</p>;
-  if (error)   return <p style={{ color: 'red' }}>{error}</p>;
+  if (error)   return <p className="error">{error}</p>;
   if (!pagos.length) return <p>No tienes pagos registrados.</p>;
 
   return (
-    <div style={{ padding: '16px' }}>
-      <h2>Mis Pagos</h2>
-      <ul>
-        {pagos.map(p => (
-          <li key={p.id} style={{ marginBottom: '0.5rem' }}>
-            Pago #{p.id} — Reserva #{p.reserva} — €{p.importe} —{' '}
-            <strong>{p.estado}</strong>
-          </li>
+    <div className="payments-page">
+      <h2 className="payments-page__title">Mis Pagos</h2>
+      <div className="payments-grid">
+        {pagos.map((p) => (
+          <PaymentCard key={p.id} payment={p} />
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
+
+
+

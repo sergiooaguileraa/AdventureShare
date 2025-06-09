@@ -8,30 +8,34 @@ class ViajeSerializer(serializers.ModelSerializer):
     organizador_id = serializers.ReadOnlyField(source='organizador.id')
     organizador_avatar = serializers.SerializerMethodField()
     imagen_url = serializers.SerializerMethodField()
-    # Nuevo campo para exponer el estado de cancelación
+
+    # AFORO TOTAL  
+    total_plazas = serializers.IntegerField(source='plazas_totales', read_only=True)
+    # PLAZAS RESTANTES  
+    disponibles = serializers.IntegerField(source='plazas_disponibles', read_only=True)
+
     cancelled = serializers.ReadOnlyField()
 
     class Meta:
         model = Viaje
         fields = [
             'id',
-            'organizador',
-            'organizador_id',
-            'organizador_avatar',
-            'titulo',
-            'descripcion',
-            'origen',
-            'destino',
-            'fecha_inicio',
-            'fecha_fin',
-            'precio',
-            'plazas_totales',
+            'organizador', 'organizador_id', 'organizador_avatar',
+            'titulo', 'descripcion', 'origen', 'destino',
+            'fecha_inicio', 'fecha_fin', 'precio',
+            'plazas_totales',   # si lo quieres seguir exponiendo ya
             'plazas_disponibles',
-            'imagen',
-            'imagen_url',
-            'cancelled',  # ← lo añadimos aquí
+            'total_plazas',     # tu alias de aforo
+            'disponibles',      # tu alias de restantes
+            'imagen', 'imagen_url',
+            'cancelled',
         ]
-        read_only_fields = ['id', 'organizador', 'plazas_disponibles', 'cancelled']
+        read_only_fields = [
+            'id', 'organizador',
+            'plazas_totales', 'plazas_disponibles',
+            'total_plazas', 'disponibles',
+            'cancelled'
+        ]
 
     def get_imagen_url(self, obj):
         request = self.context.get('request')

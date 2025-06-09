@@ -10,21 +10,23 @@ export default function TripDetailPage() {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
 
-  const [viaje, setViaje]                     = useState(null);
-  const [loading, setLoading]                 = useState(true);
-  const [error, setError]                     = useState('');
-  const [reserving, setReserving]             = useState(false);
+  const [viaje, setViaje] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reserving, setReserving] = useState(false);
 
-  const [rating, setRating]                   = useState(5);
-  const [comment, setComment]                 = useState('');
+  // Rating y valoraciones
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const [showChat, setShowChat]               = useState(false);
-  const [conversation, setConversation]       = useState([]);
-  const [messageBody, setMessageBody]         = useState('');
-  const [chatError, setChatError]             = useState('');
+  // Chat
+  const [showChat, setShowChat] = useState(false);
+  const [conversation, setConversation] = useState([]);
+  const [messageBody, setMessageBody] = useState('');
+  const [chatError, setChatError] = useState('');
 
-  // 1) Carga del viaje
+  // 1) Carga del viaje al montar el componente
   useEffect(() => {
     if (!user) {
       navigate('/login', { replace: true });
@@ -32,36 +34,72 @@ export default function TripDetailPage() {
     }
     setLoading(true);
     setError('');
-    api.get(`/viajes/${id}/`)
-      .then(res => {
+    api
+      .get(`/viajes/${id}/`)
+      .then((res) => {
         setViaje(res.data);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
-        if (err.response?.status === 401) logout();
-        else setError('No se pudo cargar la información. Intenta de nuevo más tarde.');
+        if (err.response?.status === 401) {
+          logout();
+        } else {
+          setError('No se pudo cargar la información. Intenta de nuevo más tarde.');
+        }
       })
       .finally(() => setLoading(false));
   }, [id, user, navigate, logout]);
 
-  // 2) Manejar reserva
+  // 2) Manejar reserva (envía viaje_id e importe), con verificación de organizador
   const handleReserva = async () => {
+    if (!viaje) return;
+
+    // Si el usuario es organizador del viaje, bloqueamos aquí
+    if (viaje.organizador_id === user.id) {
+      setError('No puedes reservar tu propio viaje.');
+      return;
+    }
+
     setReserving(true);
     setError('');
+
+    // Normalizar precio a número
+    const rawPrecio = viaje.precio;
+    const importe = typeof rawPrecio === 'number'
+      ? rawPrecio
+      : parseFloat(rawPrecio) || 0;
+
     try {
-      await api.post('/reservas/', { viaje: id });
+      await api.post('/reservas/', { viaje_id: id, importe });
+      // Si la reserva se crea correctamente, redirijo a Mis Reservas
       navigate('/reservas', { replace: true });
     } catch (err) {
       console.error(err);
-      if (err.response?.status === 401) logout();
-      else {
-        setError('Error al reservar. Intenta de nuevo.');
-        setReserving(false);
+
+      // Si token ha expirado o no está autenticado
+      if (err.response?.status === 401) {
+        logout();
+        return;
       }
+
+      // Si el back devuelve HTTP 400 (ValidationError “Ya tienes una reserva…”)
+      if (err.response?.status === 400) {
+        // Extraigo el primer mensaje de non_field_errors (tal como lo devolvemos en el Serializer)
+        const nonField = err.response.data.non_field_errors;
+        const msg =
+          Array.isArray(nonField) && nonField.length > 0
+            ? nonField[0]
+            : err.response.data.detail || 'Ya existe una reserva para este viaje.';
+        setError(msg);
+      } else {
+        setError('Error al reservar. Intenta de nuevo.');
+      }
+
+      setReserving(false);
     }
   };
 
-  // 3) Enviar valoración (backend ya impide valorar si no finalizó)
+  // 3) Enviar valoración
   const handleReview = async () => {
     if (!comment.trim()) return;
     setSubmittingReview(true);
@@ -74,11 +112,11 @@ export default function TripDetailPage() {
       });
       setComment('');
       setRating(5);
-      // No volvemos a cargar reviews aquí, ya no se muestran en esta página
     } catch (err) {
       console.error(err);
-      if (err.response?.status === 401) logout();
-      else if (err.response?.data?.viaje) {
+      if (err.response?.status === 401) {
+        logout();
+      } else if (err.response?.data?.viaje) {
         setError(err.response.data.viaje[0]);
       } else {
         setError('Error al enviar valoración.');
@@ -87,15 +125,16 @@ export default function TripDetailPage() {
     setSubmittingReview(false);
   };
 
-  // 4) Abrir chat y cargar conversación existente
+  // 4) Abrir chat y cargar conversación con el organizador
   const openChat = () => {
     setChatError('');
     setConversation([]);
     if (!viaje) return;
     setShowChat(true);
-    api.get(`/mensajes/conversacion/${viaje.organizador_id}/`)
-      .then(res => setConversation(res.data))
-      .catch(err => {
+    api
+      .get(`/mensajes/conversacion/${viaje.organizador_id}/`)
+      .then((res) => setConversation(res.data))
+      .catch((err) => {
         console.error(err);
         setChatError('No se pudo cargar la conversación');
       });
@@ -104,20 +143,22 @@ export default function TripDetailPage() {
   // 5) Enviar mensaje
   const sendMessage = () => {
     if (!messageBody.trim() || !viaje) return;
-    api.post('/mensajes/', {
-      destinatario: viaje.organizador_id,
-      contenido: messageBody,
-    })
-      .then(res => {
-        setConversation(prev => [...prev, res.data]);
+    api
+      .post('/mensajes/', {
+        destinatario: viaje.organizador_id,
+        contenido: messageBody,
+      })
+      .then((res) => {
+        setConversation((prev) => [...prev, res.data]);
         setMessageBody('');
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
         setChatError('Error enviando mensaje');
       });
   };
 
+  // --- Render condicional ---
   if (loading) {
     return <p className="text-center mt-6">Cargando viaje…</p>;
   }
@@ -125,16 +166,22 @@ export default function TripDetailPage() {
     return <p className="text-center mt-6 text-red-600">{error}</p>;
   }
 
-  // 6) Normalizar precio
+  // Si no tenemos datos del viaje (por alguna razón), no renderizamos nada
+  if (!viaje) return null;
+
+  // Normalizar precio y comprobar plazas
   const rawPrecio = viaje.precio;
   const precio = typeof rawPrecio === 'number'
     ? rawPrecio
     : parseFloat(rawPrecio) || 0;
+  const hayPlazas = viaje.plazas_disponibles > 0;
+
+  // Comprobar si el usuario actual es organizador de este viaje
+  const esOrganizador = viaje.organizador_id === user.id;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
-
         {/* Botón Volver */}
         <button
           onClick={() => navigate(-1)}
@@ -145,15 +192,17 @@ export default function TripDetailPage() {
 
         {/* Datos del viaje */}
         <h2 className="text-2xl font-bold mb-2">{viaje.titulo}</h2>
-        <p className="text-gray-600 mb-1">{viaje.origen} → {viaje.destino}</p>
+        <p className="text-gray-600 mb-1">
+          {viaje.origen} → {viaje.destino}
+        </p>
         <p className="text-gray-500 mb-4 text-sm">
           {new Date(viaje.fecha_inicio).toLocaleDateString()} –{' '}
           {new Date(viaje.fecha_fin).toLocaleDateString()}
         </p>
 
-        {viaje.imagen_url && (
+        {viaje.imagen && (
           <img
-            src={viaje.imagen_url}
+            src={viaje.imagen}
             alt={viaje.destino}
             className="w-full max-h-96 object-cover rounded mb-4"
           />
@@ -168,22 +217,33 @@ export default function TripDetailPage() {
         </p>
         <p className="mb-6 text-gray-700">{viaje.descripcion}</p>
 
-        {/* Botón de Reserva */}
-        <button
-          onClick={handleReserva}
-          disabled={reserving || viaje.plazas_disponibles <= 0}
-          className={`w-full mb-6 py-2 rounded text-white transition ${
-            viaje.plazas_disponibles > 0
-              ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {reserving
-            ? 'Reservando…'
-            : viaje.plazas_disponibles > 0
-            ? 'Reservar'
-            : 'Agotado'}
-        </button>
+        {/* Botón de Reserva o mensaje si eres organizador */}
+        {esOrganizador ? (
+          <p className="text-red-600 font-medium mb-6">
+            No puedes reservar tu propio viaje.
+          </p>
+        ) : (
+          <button
+            onClick={handleReserva}
+            disabled={reserving || !hayPlazas}
+            className={`w-full mb-6 py-2 rounded text-white transition ${
+              hayPlazas
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {reserving
+              ? 'Reservando…'
+              : hayPlazas
+              ? 'Reservar'
+              : 'Agotado'}
+          </button>
+        )}
+
+        {/* Mostrar mensaje de error si existe */}
+        {error && (
+          <p className="text-red-600 text-sm mb-6">{error}</p>
+        )}
 
         {/* Avatar + Organizador + Chat */}
         <div className="flex items-center mb-6 space-x-4">
@@ -196,8 +256,9 @@ export default function TripDetailPage() {
           )}
           <div>
             <p className="text-sm text-gray-500">Organizado por</p>
+            {/* Enlace corregido: apuntar a /organizador/{id} */}
             <Link
-              to={`/perfil/${viaje.organizador_id}`}
+              to={`/organizador/${viaje.organizador_id}`}
               className="text-lg text-blue-600 hover:underline"
             >
               {viaje.organizador}
@@ -212,15 +273,18 @@ export default function TripDetailPage() {
         </div>
 
         {/* ── BOTONES PARA EL ORGANIZADOR ── */}
-        {user.id === viaje.organizador_id && (
+        {esOrganizador && (
           <div className="flex items-center space-x-4 mb-6">
             {!viaje.cancelled ? (
               <button
                 onClick={async () => {
-                  if (!window.confirm('¿Estás seguro de que quieres cancelar el viaje?')) return;
+                  if (
+                    !window.confirm('¿Estás seguro de que quieres cancelar el viaje?')
+                  )
+                    return;
                   try {
                     await api.post(`/viajes/${id}/cancelar/`);
-                    setViaje(prev => ({ ...prev, cancelled: true }));
+                    setViaje((prev) => ({ ...prev, cancelled: true }));
                   } catch (e) {
                     console.error(e);
                     alert('Error cancelando el viaje');
@@ -237,7 +301,12 @@ export default function TripDetailPage() {
             )}
             <button
               onClick={async () => {
-                if (!window.confirm('¿Estás seguro de que quieres ELIMINAR este viaje definitivamente?')) return;
+                if (
+                  !window.confirm(
+                    '¿Estás seguro de que quieres ELIMINAR este viaje definitivamente?'
+                  )
+                )
+                  return;
                 try {
                   await api.delete(`/viajes/${id}/`);
                   navigate('/trips', { replace: true });
@@ -270,14 +339,14 @@ export default function TripDetailPage() {
                 </button>
               </div>
               <div className="h-64 overflow-y-auto mb-3 border rounded p-2 flex flex-col">
-                {chatError && (
-                  <p className="text-red-600 text-sm">{chatError}</p>
-                )}
-                {conversation.map(m => (
+                {chatError && <p className="text-red-600 text-sm">{chatError}</p>}
+                {conversation.map((m) => (
                   <div
                     key={m.id}
-                    className={`my-2 p-2 rounded self-${
-                      m.remitente === user.username ? 'end bg-blue-100' : 'start bg-gray-200'
+                    className={`my-2 p-2 rounded ${
+                      m.remitente === user.username
+                        ? 'self-end bg-blue-100'
+                        : 'self-start bg-gray-200'
                     }`}
                   >
                     <strong>{m.remitente}:</strong> {m.contenido}
@@ -288,7 +357,7 @@ export default function TripDetailPage() {
                 className="w-full border rounded p-2 mb-2 h-20"
                 placeholder="Escribe un mensaje…"
                 value={messageBody}
-                onChange={e => setMessageBody(e.target.value)}
+                onChange={(e) => setMessageBody(e.target.value)}
               />
               <button
                 onClick={sendMessage}
@@ -306,17 +375,14 @@ export default function TripDetailPage() {
         {/* Sección de valoraciones - SOLO FORMULARIO */}
         <h3 className="text-xl font-semibold mb-2">Deja tu valoración</h3>
         <div className="space-y-4 mb-6">
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
           <div>
             <label className="block mb-1">Puntuación</label>
             <select
               value={rating}
-              onChange={e => setRating(Number(e.target.value))}
+              onChange={(e) => setRating(Number(e.target.value))}
               className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              {[1, 2, 3, 4, 5].map(n => (
+              {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
                   {n} estrella{n > 1 ? 's' : ''}
                 </option>
@@ -327,7 +393,7 @@ export default function TripDetailPage() {
             <label className="block mb-1">Comentario</label>
             <textarea
               value={comment}
-              onChange={e => setComment(e.target.value)}
+              onChange={(e) => setComment(e.target.value)}
               placeholder="Tu comentario…"
               className="w-full border rounded px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
@@ -340,9 +406,14 @@ export default function TripDetailPage() {
             {submittingReview ? 'Enviando…' : 'Enviar valoración'}
           </button>
         </div>
-
       </div>
     </div>
   );
 }
+
+
+
+
+
+
 

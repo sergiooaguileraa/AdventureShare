@@ -1,4 +1,5 @@
-// frontend/src/pages/TripListPage.jsx
+// src/pages/TripListPage.jsx
+
 import React, { useState, useEffect, useContext } from 'react';
 import api from '../services/api';
 import TripCard from '../components/TripCard';
@@ -29,26 +30,47 @@ export default function TripListPage() {
         const activos = res.data.filter(v => !v.cancelled);
         setViajes(activos);
       } catch (err) {
-        if (err.response?.status === 401) logout();
-        else setError('Error al cargar los viajes.');
+        if (err.response?.status === 401) {
+          logout();
+        } else {
+          setError('Error al cargar los viajes.');
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, [user, navigate, logout]);
 
-  if (loading) return <p className="text-center mt-6">Cargando viajes…</p>;
-  if (error)   return <p className="text-center mt-6 text-red-600">{error}</p>;
+  if (loading) {
+    return <p className="text-center mt-6">Cargando viajes…</p>;
+  }
+  if (error) {
+    return <p className="text-center mt-6 text-red-600">{error}</p>;
+  }
 
   // Orígenes únicos para el filtro
   const origins = Array.from(new Set(viajes.map(v => v.origen)));
 
-  // Buscador + filtro de origen
-  const filtered = viajes.filter(v =>
-    !v.cancelled &&                                           // sólo activos (por si)
-    v.destino.toLowerCase().includes(search.toLowerCase()) &&
-    (filterOrigin ? v.origen === filterOrigin : true)
-  );
+  // Buscador + filtro de origen (ahora incluye tanto destino como título):
+  const filtered = viajes.filter(v => {
+    // 1) Sigue descartando los cancelados (por si quedara alguno):
+    if (v.cancelled) return false;
+
+    // 2) Comparación en minúsculas, buscando coincidencia en destino O en título:
+    const textoBuscado = search.trim().toLowerCase();
+    const destinoLower = v.destino.toLowerCase();
+    const tituloLower = v.titulo.toLowerCase();
+    const coincideBusqueda =
+      destinoLower.includes(textoBuscado) ||
+      tituloLower.includes(textoBuscado);
+
+    if (!coincideBusqueda) return false;
+
+    // 3) Filtro de origen (si se ha seleccionado alguno distinto de “”):
+    if (filterOrigin && v.origen !== filterOrigin) return false;
+
+    return true;
+  });
 
   return (
     <div className="p-4 min-h-screen">
@@ -67,7 +89,7 @@ export default function TripListPage() {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por destino..."
+          placeholder="Buscar por destino o título..."
           className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
         <select
@@ -77,7 +99,9 @@ export default function TripListPage() {
         >
           <option value="">Todos los orígenes</option>
           {origins.map(orig => (
-            <option key={orig} value={orig}>{orig}</option>
+            <option key={orig} value={orig}>
+              {orig}
+            </option>
           ))}
         </select>
       </div>
@@ -94,6 +118,7 @@ export default function TripListPage() {
     </div>
   );
 }
+
 
 
 

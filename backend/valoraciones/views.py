@@ -3,6 +3,7 @@
 from datetime import date
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Valoracion
 from .serializers import ValoracionSerializer
@@ -15,10 +16,19 @@ class ValoracionViewSet(viewsets.ModelViewSet):
       - POST (create): solo usuarios autenticados y solo si el viaje ya finalizó.
       - PUT/PATCH/DELETE: solo usuarios autenticados (IsAuthenticated).
       - Al crear, asigna automáticamente 'autor' = request.user.
+      - Ahora también soporta el parámetro de consulta `?viaje__organizador=<id>`
+        para filtrar únicamente las valoraciones de los viajes cuyo organizador
+        tenga el ID indicado.
     """
     queryset = Valoracion.objects.all().order_by('-creado_en')
     serializer_class = ValoracionSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    # ————————————————
+    # Habilitamos DjangoFilterBackend y permitimos filtrar por viaje__organizador
+    # ————————————————
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['viaje__organizador']
 
     def create(self, request, *args, **kwargs):
         """
@@ -53,3 +63,4 @@ class ValoracionViewSet(viewsets.ModelViewSet):
          en create() arriba. Sin embargo, lo dejamos por si se llamase en otro contexto.)
         """
         serializer.save(autor=self.request.user)
+

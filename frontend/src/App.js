@@ -1,4 +1,4 @@
-// frontend/src/App.js
+// src/App.js
 
 import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import PaymentListPage from './pages/PaymentListPage';
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from './pages/ProfilePage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import OrganizerReservations from './pages/OrganizerReservations'; // ← Nueva pantalla de solicitudes
 
 function RequireAuth({ children }) {
   const { user } = useContext(AuthContext);
@@ -37,10 +38,13 @@ export default function App() {
         <Route path="trips/create" element={<CreateTripPage />} />
         <Route path="trips/:id" element={<TripDetailPage />} />
 
-        {/* Reservas y pagos */}
+        {/* Reservas y pagos (viajero) */}
         <Route path="reservas" element={<ReservationListPage />} />
         <Route path="reservas/:id/pay" element={<PaymentPage />} />
         <Route path="pagos" element={<PaymentListPage />} />
+
+        {/* Panel de organizador: ver/confirmar solicitudes de reserva */}
+        <Route path="organizador/reservas" element={<OrganizerReservations />} />
 
         {/* Mensajes y conversaciones */}
         <Route path="mensajes" element={<MessagesPage />} />
@@ -58,6 +62,10 @@ export default function App() {
     </Routes>
   );
 }
+
+
+
+
 
 
 

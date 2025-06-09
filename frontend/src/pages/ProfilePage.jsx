@@ -6,32 +6,49 @@ import api from '../services/api';
 import { AuthContext } from '../contexts/AuthContext';
 
 export default function ProfilePage() {
-  // 1) Sacamos el parámetro “id” de la URL: /perfil/:id
-  //    Si “id” es undefined, asumimos que estamos en "/perfil" (nuestro propio perfil).
-  const { id } = useParams();
+  // --- 1) Parámetros y contexto ---
+  const { id } = useParams();           // Si “id” es undefined → mi propio perfil
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
 
-  const [profile, setProfile]               = useState(null);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState('');
-  const [showChat, setShowChat]             = useState(false);
-  const [conversation, setConversation]     = useState([]);
-  const [messageBody, setMessageBody]       = useState('');
-  const [chatError, setChatError]           = useState('');
+  // --- 2) Estados principales ---
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Chat
+  const [showChat, setShowChat] = useState(false);
+  const [conversation, setConversation] = useState([]);
+  const [messageBody, setMessageBody] = useState('');
+  const [chatError, setChatError] = useState('');
+
+  // Valoraciones recibidas (solo las del organizador correcto)
   const [reviewsReceived, setReviewsReceived] = useState([]);
 
-  // Para edición:
-  const [editMode, setEditMode]             = useState(null);
-  const [tempValue, setTempValue]           = useState('');
-  const [previewAvatar, setPreviewAvatar]   = useState(null);
-  const [currentAvatarFile, setCurrentAvatarFile] = useState(null);
-  const [savingProfile, setSavingProfile]   = useState(false);
-  const [usernameError, setUsernameError]   = useState('');
+  // Edición inline de username/bio
+  const [editMode, setEditMode] = useState(null);
+  const [tempValue, setTempValue] = useState('');
+  const [usernameError, setUsernameError] = useState('');
 
+  // Avatar:
+  //  - previewAvatar: URL de previsualización (dataURL o URL del backend)
+  //  - savingProfile: indicador de si se está subiendo avatar o guardando cambios
+  const [previewAvatar, setPreviewAvatar] = useState(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // --- 3) ¿Estoy viendo mi propio perfil o el de otro?
+  //     - Si “id” está undefined → /perfil → es mi propio perfil.
+  //     - Si “id” existe y coincide con user.id → también es mi propio perfil.
+  const isOwnProfile = !id || parseInt(id, 10) === user?.id;
+
+  // ========================================================================
+  //                              EFECTOS
+  // ========================================================================
+
+  // --- Efecto 1: Cargar datos del perfil (propio o ajeno) ---
   useEffect(() => {
-    // 2) Si no hay usuario logueado, REDIRIGIMOS a /login
     if (!user) {
+      // Si no hay usuario en contexto → redirigir a login
       navigate('/login', { replace: true });
       return;
     }
@@ -39,12 +56,15 @@ export default function ProfilePage() {
     setLoading(true);
     setError('');
 
-    // 3) Si “id” es undefined => estamos en "/perfil" y queremos cargar nuestro propio perfil.
     if (!id) {
-      api.get('/usuarios/me/')
+      // 1.A) “/perfil” → cargar mi propio perfil
+      api
+        .get('/usuarios/me/')
         .then((res) => {
           setProfile(res.data);
-          if (res.data.avatar) setPreviewAvatar(res.data.avatar);
+          if (res.data.avatar) {
+            setPreviewAvatar(res.data.avatar);
+          }
         })
         .catch((err) => {
           console.error(err);
@@ -57,11 +77,14 @@ export default function ProfilePage() {
         })
         .finally(() => setLoading(false));
     } else {
-      // 4) Si “id” existe => estamos en "/perfil/:id", cargamos el perfil público de ese usuario.
-      api.get(`/usuarios_publicos/${id}/`)
+      // 1.B) “/organizador/:id” → cargar perfil público de otro usuario
+      api
+        .get(`/usuarios_publicos/${id}/`)
         .then((res) => {
           setProfile(res.data);
-          if (res.data.avatar) setPreviewAvatar(res.data.avatar);
+          if (res.data.avatar) {
+            setPreviewAvatar(res.data.avatar);
+          }
         })
         .catch((err) => {
           console.error(err);
@@ -78,31 +101,59 @@ export default function ProfilePage() {
     }
   }, [id, user, navigate, logout]);
 
-  // 5) Cargar valoraciones recibidas por este organizador una vez que profile esté disponible
+  // --- Efecto 2: Cargar únicamente las valoraciones recibidas por el organizador correcto ---
+  //      Si ese usuario (o yo, si es mi perfil) organiza al menos un viaje, las solicitamos
   useEffect(() => {
     if (!profile) return;
 
-    // Determinamos qué id de organizador usar en la consulta:
+    // Determinar “organizadorId”:
+    //   - si “id” existe → perfil ajeno → organizadorId = parseInt(id)
+    //   - si “id” no existe → perfil propio → organizadorId = user.id
     const organizadorId = id ? parseInt(id, 10) : user.id;
 
-    api.get(`/valoraciones/?viaje__organizador=${organizadorId}`)
+    // 2.A) Primero, verificamos si este usuario organiza algún viaje:
+    api
+      .get(`/viajes/?organizador=${organizadorId}`)
       .then((res) => {
-        setReviewsReceived(res.data);
+        const misViajes = res.data;
+
+        if (misViajes.length === 0) {
+          // Si no organiza NINGÚN viaje, no le pedimos valoraciones
+          setReviewsReceived([]);
+          return;
+        }
+
+        // 2.B) Si sí organiza al menos un viaje → buscamos todas las valoraciones de esos viajes:
+        api
+          .get(`/valoraciones/?viaje__organizador=${organizadorId}`)
+          .then((res2) => {
+            setReviewsReceived(res2.data);
+          })
+          .catch((err2) => {
+            console.error(err2);
+            setReviewsReceived([]);
+          });
       })
       .catch((err) => {
         console.error(err);
+        setReviewsReceived([]);
       });
   }, [profile, id, user.id]);
 
-  // 6) Función para abrir el modal de chat y cargar la conversación con el usuario “id”
+  // ========================================================================
+  //                            FUNCIONES AUXILIARES
+  // ========================================================================
+
+  // --- Funciones para el chat (solo si es perfil ajeno) ---
   const openChat = () => {
     setChatError('');
     setConversation([]);
 
-    // Solo si “id” está definido — de otro modo no mostramos el botón de chat
+    // Si estoy en mi propio perfil → no muestro chat
     if (!id) return;
 
-    api.get(`/mensajes/conversacion/${id}/`)
+    api
+      .get(`/mensajes/conversacion/${id}/`)
       .then((res) => {
         setConversation(res.data);
       })
@@ -114,16 +165,15 @@ export default function ProfilePage() {
     setShowChat(true);
   };
 
-  // 7) Función para enviar un mensaje al usuario cuyo perfil vemos (id)
   const sendMessage = () => {
     if (!messageBody.trim() || !id) return;
 
-    api.post('/mensajes/', {
-      destinatario: parseInt(id, 10),
-      contenido: messageBody,
-    })
+    api
+      .post('/mensajes/', {
+        destinatario: parseInt(id, 10),
+        contenido: messageBody,
+      })
       .then((res) => {
-        // Añadimos el mensaje recién enviado a la conversación en memoria
         setConversation((prev) => [...prev, res.data]);
         setMessageBody('');
       })
@@ -133,7 +183,7 @@ export default function ProfilePage() {
       });
   };
 
-  // 8) Comenzar edición inline (username o bio)
+  // --- Edición inline de username/bio ---
   const startEdit = (field) => {
     setUsernameError('');
     setEditMode(field);
@@ -144,24 +194,51 @@ export default function ProfilePage() {
     }
   };
 
-  // 9) Cancelar edición inline
   const cancelEdit = () => {
     setEditMode(null);
     setTempValue('');
   };
 
-  // 10) Manejar cambio de avatar (file input)
-  const handleAvatarChange = (e) => {
+  // --- Subir avatar inmediatamente (sin botón “Guardar”) ---
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setCurrentAvatarFile(file);
+
+    // Previsualizar localmente
     setPreviewAvatar(URL.createObjectURL(file));
+    setSavingProfile(true);
+
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+
+      // PATCH a /usuarios/me/ solamente con avatar
+      const { data } = await api.patch('/usuarios/me/', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      // Refrescar el objeto `profile` con la URL definitiva
+      setProfile(data);
+      if (data.avatar) setPreviewAvatar(data.avatar);
+    } catch (err) {
+      console.error(err);
+      alert('Error subiendo la foto de perfil. Intenta de nuevo.');
+      // Si falla, revertimos la previsualización
+      if (profile && profile.avatar) {
+        setPreviewAvatar(profile.avatar);
+      } else {
+        setPreviewAvatar(null);
+      }
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  // 11) Guardar cambios en perfil (avatar, username o bio)
+  // --- Guardar cambios en username o bio ---
   const saveProfile = async () => {
     setSavingProfile(true);
     setUsernameError('');
+
     try {
       const form = new FormData();
       if (editMode === 'username') {
@@ -175,19 +252,17 @@ export default function ProfilePage() {
       if (editMode === 'bio') {
         form.append('bio', tempValue);
       }
-      if (currentAvatarFile) {
-        form.append('avatar', currentAvatarFile);
-      }
+
       await api.patch('/usuarios/me/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      // Recargar perfil actualizado
+
+      // Cargar nuevamente mis datos actualizados
       const { data } = await api.get('/usuarios/me/');
       setProfile(data);
       if (data.avatar) setPreviewAvatar(data.avatar);
       setEditMode(null);
       setTempValue('');
-      setCurrentAvatarFile(null);
     } catch (err) {
       console.error(err);
       if (err.response?.data?.username) {
@@ -200,6 +275,9 @@ export default function ProfilePage() {
     }
   };
 
+  // ========================================================================
+  //                            RENDERIZADO PRINCIPAL
+  // ========================================================================
   if (loading) {
     return <p className="text-center mt-6">Cargando perfil…</p>;
   }
@@ -207,18 +285,13 @@ export default function ProfilePage() {
     return <p className="text-center mt-6 text-red-600">{error}</p>;
   }
   if (!profile) {
-    // Si por alguna razón profile es null después de cargar, no renderizamos nada
-    return null;
+    return null; // (no hay nada que mostrar)
   }
-
-  // 12) Determinamos si estamos viendo nuestro propio perfil:
-  //    - Si “id” está undefined, forzosamente estamos en /perfil = nuestro perfil.
-  //    - Si “id” está definido pero coincide con user.id, también es nuestro perfil.
-  const isOwnProfile = !id || parseInt(id, 10) === user.id;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-xl mx-auto bg-white rounded-lg shadow p-6">
+        {/* ← Volver atrás */}
         <button
           onClick={() => navigate(-1)}
           className="text-blue-600 hover:underline mb-4"
@@ -226,7 +299,7 @@ export default function ProfilePage() {
           ← Volver atrás
         </button>
 
-        {/* ——— Avatar, Nombre de Usuario y Biografía ——— */}
+        {/* ——— Avatar, Username y Biografía ——— */}
         <div className="flex flex-col items-center mb-6">
           <label htmlFor="avatar-input" className="cursor-pointer">
             <input
@@ -235,7 +308,7 @@ export default function ProfilePage() {
               accept="image/*"
               onChange={handleAvatarChange}
               className="hidden"
-              disabled={!isOwnProfile}
+              disabled={!isOwnProfile || savingProfile}
             />
             {previewAvatar ? (
               <img
@@ -250,7 +323,7 @@ export default function ProfilePage() {
             )}
           </label>
 
-          {/* Username editable */}
+          {/* Editable: Username */}
           {editMode === 'username' ? (
             <div className="w-full max-w-xs">
               <input
@@ -293,7 +366,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Biografía editable */}
+          {/* Editable: Biografía */}
           {editMode === 'bio' ? (
             <div className="w-full max-w-md mt-3">
               <textarea
@@ -336,7 +409,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ——— Cambiar contraseña (solo propio perfil) ——— */}
+        {/* ——— Cambiar contraseña (solo en mi propio perfil) ——— */}
         {isOwnProfile && (
           <div className="flex justify-center mb-6">
             <button
@@ -348,7 +421,19 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* ——— Lista de Valoraciones Recibidas ——— */}
+        {/* ——— Botón de “Enviar mensaje” (solo si es perfil ajeno) ——— */}
+        {!isOwnProfile && (
+          <div className="flex justify-center mb-6">
+            <button
+              onClick={openChat}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            >
+              Enviar mensaje
+            </button>
+          </div>
+        )}
+
+        {/* ——— Lista de Valoraciones Recibidas (solo del organizador correcto) ——— */}
         <h3 className="text-xl font-semibold mb-4">Valoraciones recibidas</h3>
         {reviewsReceived.length === 0 ? (
           <p className="text-gray-600 mb-6">
@@ -380,9 +465,7 @@ export default function ProfilePage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white w-96 rounded-lg shadow-lg p-4">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-semibold">
-                  Chat con {profile.username}
-                </h3>
+                <h3 className="text-lg font-semibold">Chat con {profile.username}</h3>
                 <button
                   onClick={() => setShowChat(false)}
                   className="text-gray-500 hover:text-gray-800"
@@ -391,16 +474,12 @@ export default function ProfilePage() {
                 </button>
               </div>
               <div className="h-64 overflow-y-auto mb-3 border rounded p-2 flex flex-col">
-                {chatError && (
-                  <p className="text-red-600 text-sm">{chatError}</p>
-                )}
+                {chatError && <p className="text-red-600 text-sm">{chatError}</p>}
                 {conversation.map((m) => (
                   <div
                     key={m.id}
                     className={`my-2 p-2 rounded ${
-                      m.remitente === user.username
-                        ? 'self-end bg-blue-100'
-                        : 'self-start bg-gray-200'
+                      m.remitente === user.username ? 'self-end bg-blue-100' : 'self-start bg-gray-200'
                     }`}
                   >
                     <strong>{m.remitente}:</strong> {m.contenido}
@@ -422,8 +501,13 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
-        {/* ——— Fin del Modal de Chat ——— */}
+        {/* ——— Fin Modal de Chat ——— */}
       </div>
     </div>
   );
 }
+
+
+
+
+

@@ -1,28 +1,26 @@
 // frontend/src/components/TripCard.jsx
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TripCard({ viaje }) {
   const navigate = useNavigate();
 
-  // Parsear fechas del viaje
+  // Parseamos las fechas que vienen como strings JSON
   const inicio = new Date(viaje.fecha_inicio);
   const fin = new Date(viaje.fecha_fin);
   const hoy = new Date();
 
-  // Determinar estado del viaje
+  // Determinar el estado del viaje (por iniciar / en curso / realizado)
   let estadoText = '';
   let estadoClasses = '';
   if (hoy < inicio) {
-    // Aún no ha empezado
     estadoText = 'Por iniciar';
     estadoClasses = 'bg-blue-100 text-blue-800';
   } else if (hoy >= inicio && hoy < fin) {
-    // Actualmente en curso
     estadoText = 'En curso';
     estadoClasses = 'bg-yellow-100 text-yellow-800';
   } else {
-    // Ya finalizó
     estadoText = 'Realizado';
     estadoClasses = 'bg-green-100 text-green-800';
   }
@@ -32,11 +30,17 @@ export default function TripCard({ viaje }) {
       onClick={() => navigate(`/trips/${viaje.id}`)}
       className="relative cursor-pointer bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition"
     >
-      <img
-        src={viaje.imagen_url}
-        alt={viaje.destino}
-        className="w-full h-48 object-cover"
-      />
+      {/*
+        Aquí reemplazamos `viaje.imagen_url` por `viaje.imagen`
+        (que es la propiedad que devuelve tu API).
+      */}
+      {viaje.imagen && (
+        <img
+          src={viaje.imagen}
+          alt={viaje.titulo}
+          className="w-full h-48 object-cover"
+        />
+      )}
 
       {/* Badge de estado en la esquina superior derecha sobre la imagen */}
       <div className="absolute top-2 right-2">
@@ -58,18 +62,21 @@ export default function TripCard({ viaje }) {
       </div>
 
       <div className="p-4">
-        <h3 className="text-lg font-semibold">{viaje.titulo}</h3>
-        <p className="text-sm text-gray-600">
+        {/* Mostramos sólo propiedades concretas, nunca el objeto entero */}
+        <h3 className="text-lg font-semibold mb-1">{viaje.titulo}</h3>
+        <p className="text-sm text-gray-600 mb-2">
           {viaje.origen} → {viaje.destino}
         </p>
         <p className="flex items-center text-sm text-gray-500">
-          {new Date(viaje.fecha_inicio).toLocaleDateString()} –{' '}
-          {new Date(viaje.fecha_fin).toLocaleDateString()}
+          {new Date(viaje.fecha_inicio).toLocaleDateString('es-ES')} –{' '}
+          {new Date(viaje.fecha_fin).toLocaleDateString('es-ES')}
         </p>
+        <p className="font-semibold mt-2">€{parseFloat(viaje.precio).toFixed(2)}</p>
       </div>
     </div>
   );
 }
+
 
 
 
