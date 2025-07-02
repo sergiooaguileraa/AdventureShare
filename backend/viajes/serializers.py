@@ -1,5 +1,3 @@
-# backend/viajes/serializers.py
-
 from rest_framework import serializers
 from .models import Viaje
 
@@ -9,9 +7,9 @@ class ViajeSerializer(serializers.ModelSerializer):
     organizador_avatar = serializers.SerializerMethodField()
     imagen_url = serializers.SerializerMethodField()
 
-    # AFORO TOTAL  
+    # AFORO TOTAL (sólo lectura mediante alias total_plazas)
     total_plazas = serializers.IntegerField(source='plazas_totales', read_only=True)
-    # PLAZAS RESTANTES  
+    # PLAZAS RESTANTES (sólo lectura mediante alias disponibles)
     disponibles = serializers.IntegerField(source='plazas_disponibles', read_only=True)
 
     cancelled = serializers.ReadOnlyField()
@@ -23,18 +21,17 @@ class ViajeSerializer(serializers.ModelSerializer):
             'organizador', 'organizador_id', 'organizador_avatar',
             'titulo', 'descripcion', 'origen', 'destino',
             'fecha_inicio', 'fecha_fin', 'precio',
-            'plazas_totales',   # si lo quieres seguir exponiendo ya
-            'plazas_disponibles',
-            'total_plazas',     # tu alias de aforo
-            'disponibles',      # tu alias de restantes
+            'plazas_totales',            # Aforo total (editable)
+            'plazas_disponibles',        # Plazas disponibles (editable o calculado en save)
+            'total_plazas', 'disponibles',
             'imagen', 'imagen_url',
             'cancelled',
         ]
         read_only_fields = [
             'id', 'organizador',
-            'plazas_totales', 'plazas_disponibles',
+            'plazas_disponibles',        # Sólo lectura, se inicializa en save()
             'total_plazas', 'disponibles',
-            'cancelled'
+            'cancelled',
         ]
 
     def get_imagen_url(self, obj):
@@ -54,5 +51,6 @@ class ViajeSerializer(serializers.ModelSerializer):
             url = avatar.url
             return request.build_absolute_uri(url) if request else url
         return None
+
 
 

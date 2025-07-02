@@ -1,38 +1,41 @@
+# backend/settings.py
+
 import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Carga variables de entorno desde .env
 load_dotenv()
-
-# Paths base
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Seguridad
+# ──────────────────────────────────────────────────────────────────────────────
+# Claves y flags
+# ──────────────────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Estáticos y medios (deben ir aquí para staticfiles)
+# ──────────────────────────────────────────────────────────────────────────────
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Aplicaciones instaladas
+# ──────────────────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
-    # Django
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-
-    # Terceros
+    'django.contrib.staticfiles',    # <-- requiere STATIC_URL definido arriba
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-
-    # Necesario para habilitar filtros en DRF
     'django_filters',
-
-    # Tuyas
     'usuarios',
     'viajes',
     'reservas',
@@ -41,7 +44,9 @@ INSTALLED_APPS = [
     'mensajes',
 ]
 
-# Middlewares (corsheaders debe ir antes de CommonMiddleware)
+# ──────────────────────────────────────────────────────────────────────────────
+# Middleware
+# ──────────────────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -53,31 +58,38 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS — solo permite peticiones desde tu React en desarrollo
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3001',
-]
+# ──────────────────────────────────────────────────────────────────────────────
+# CORS
+# ──────────────────────────────────────────────────────────────────────────────
+CORS_ALLOWED_ORIGINS = ['http://localhost:3001']
 CORS_ALLOW_CREDENTIALS = True
 
-# URLs y plantillas
+# ──────────────────────────────────────────────────────────────────────────────
+# URLs y WSGI
+# ──────────────────────────────────────────────────────────────────────────────
 ROOT_URLCONF = 'backend.urls'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [],              # rutas a carpetas de templates si las necesitas
+        'APP_DIRS': True,        # busca /templates/ en cada app
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.request',
+                'django.template.context_processors.debug',           # opcional
+                'django.template.context_processors.request',         # necesario para admin
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
         },
     },
 ]
+
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-# Base de datos PostgreSQL
+# ──────────────────────────────────────────────────────────────────────────────
+# Bases de datos
+# ──────────────────────────────────────────────────────────────────────────────
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -86,33 +98,30 @@ DATABASES = {
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
         'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
         'PORT': os.getenv('POSTGRES_PORT', '5432'),
-        'OPTIONS': {
-            'client_encoding': 'UTF8',
-        },
+        'OPTIONS': {'client_encoding': 'UTF8'},
     }
 }
 
-# Modelo de usuario personalizado
+# ──────────────────────────────────────────────────────────────────────────────
+# Modelo de usuario
+# ──────────────────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
-# Django REST Framework + JWT
+# ──────────────────────────────────────────────────────────────────────────────
+# Django REST Framework
+# ──────────────────────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # JWT para clientes externos
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # Sesión/Basic para el navegador de la API
-        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    # ← Aquí habilitamos el filtrado por URLQueryParams
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
     ),
 }
 
-# Configuración de Simple JWT
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -121,26 +130,42 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Validadores de contraseña
+# ──────────────────────────────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internacionalización
+# ──────────────────────────────────────────────────────────────────────────────
+# Localización
+# ──────────────────────────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'es-es'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Archivos estáticos
-STATIC_URL = '/static/'
+# ──────────────────────────────────────────────────────────────────────────────
+# Configuración de Email
+# ──────────────────────────────────────────────────────────────────────────────
+if DEBUG:
+    # En desarrollo: imprime los correos en la consola
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # En producción: configura tu SMTP real vía variables de entorno
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.tuproveedor.com')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'webmaster@tudominio.com')
 
-# Media (subidas de usuarios: avatares, etc.)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Prefield ID
+# ──────────────────────────────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

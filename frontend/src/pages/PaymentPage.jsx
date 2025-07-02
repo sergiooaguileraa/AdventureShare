@@ -29,8 +29,15 @@ export default function PaymentPage() {
       const { data } = await api.put(`/reservas/${id}/mark_paid/`);
       // data.reserva viene actualizado
       setReserva(data.reserva);
-    } catch {
-      setError('Error al procesar el pago');
+    } catch (err) {
+      // 🔍 Logging completo para entender el 403
+      console.error('🚨 mark_paid error:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        headers: err.response?.headers,
+      });
+      // Mostrar al usuario el detalle que venga desde el backend
+      setError(err.response?.data?.detail || 'Error al procesar el pago');
     } finally {
       setPaying(false);
     }
@@ -124,6 +131,7 @@ export default function PaymentPage() {
     </div>
   );
 }
+
 
 
 
